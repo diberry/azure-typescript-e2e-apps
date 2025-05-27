@@ -9,13 +9,15 @@
 	// "features": {},
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	"forwardPorts": [7071],
+	"forwardPorts": [3000,7071],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
 	"postCreateCommand": "npm install -g azure-functions-core-tools@4.0.6610 --save-exact --unsafe-perm true",
 	"features": {
 		"ghcr.io/jsburckhardt/devcontainer-features/gitleaks:1": {},
-		"ghcr.io/devcontainers/features/azure-cli:1": {}
+		"ghcr.io/devcontainers/features/azure-cli:1": {},
+		"ghcr.io/azure/azure-dev/azd:0": {},
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {}
 	},
 	"customizations": {
 		"vscode": {
