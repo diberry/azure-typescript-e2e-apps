@@ -12,6 +12,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@azure/ai-agents": "^1.0.0-beta.3",
     "@azure/ai-projects": "^1.0.0-beta.2",
     "@azure/core-util": "^1.11.0",
     "@azure/identity": "^4.6.0",
