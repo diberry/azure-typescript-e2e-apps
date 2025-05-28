@@ -59,21 +59,30 @@ async function main() {
   const streamEventMessages = await client.runs.create(thread.id, agent.id).stream();
 
   for await (const eventMessage of streamEventMessages) {
-    switch (eventMessage.event) {
-      case RunStreamEvent.ThreadRunCreated:
-        console.log(`ThreadRun status: ${eventMessage?.data?.status}`);
+    switch (eventMessage.event) {      case RunStreamEvent.ThreadRunCreated:
+        // Type check or cast to access the status property safely
+        if (typeof eventMessage.data === 'object' && eventMessage.data !== null && 'status' in eventMessage.data) {
+          console.log(`ThreadRun status: ${eventMessage.data.status}`);
+        } else {
+          console.log(`ThreadRun created: ${JSON.stringify(eventMessage.data)}`);
+        }
         break;
       case MessageStreamEvent.ThreadMessageDelta:
         {
-
           const messageDelta = eventMessage.data;
-          messageDelta?.delta?.content.forEach((contentPart) => {
-            if (contentPart.type === "text") {
-              const textContent = contentPart;
-              const textValue = textContent.text?.value || "No text";
-              console.log(`Text delta received:: ${textValue}`);
-            }
-          });
+          // Type check or cast to access the delta property safely
+          if (typeof messageDelta === 'object' && messageDelta !== null && 'delta' in messageDelta && 
+              messageDelta.delta && 'content' in messageDelta.delta && Array.isArray(messageDelta.delta.content)) {
+            messageDelta.delta.content.forEach((contentPart) => {
+              if (contentPart.type === "text") {                const textContent = contentPart;
+                // Add type guard for text content
+                if ('text' in textContent && textContent.text && typeof textContent.text === 'object') {
+                  const textValue = textContent.text.value || "No text";
+                  console.log(`Text delta received:: ${textValue}`);
+                }
+              }
+            });
+          }
         }
         break;
 
@@ -100,7 +109,6 @@ async function main() {
     messagesArray.push(m);
   }
   console.log("Messages:", messagesArray);
-
   // Get most recent message from the assistant
   const assistantMessage = messagesArray.find((msg) => msg.role === "assistant");
   if (assistantMessage) {
@@ -108,14 +116,32 @@ async function main() {
     if (textContent) {
       // Save the newly created file
       console.log(`Saving new files...`);
-      const imageFileOutput = messagesArray[0].content[0];
-      const imageFile = imageFileOutput?.imageFile?.fileId;
+      const imageFileOutput = messagesArray[0].content[0];      // Use type checking to safely access the imageFile property
+      let imageFileId = '';
+      
+      // Check if content has image file type and has the correct structure
+      if (isOutputOfType(imageFileOutput, "image_file") && 
+          'image_file' in imageFileOutput && 
+          imageFileOutput.image_file && 
+          typeof imageFileOutput.image_file === 'object') {
+        // Use type assertion after validating the structure
+        const typedImageFile = imageFileOutput.image_file as { fileId: string };
+        if ('fileId' in typedImageFile && typeof typedImageFile.fileId === 'string') {
+          imageFileId = typedImageFile.fileId;
+        }
+      }
+      
+      if (!imageFileId) {
+        console.log("No image file found in the message content");
+        return;
+      }
+      
       const imageFileName = path.resolve(
-        "./data/" + (await client.files.get(imageFile)).filename + "ImageFile.png",
+        "./data/" + (await client.files.get(imageFileId)).filename + "ImageFile.png",
       );
       console.log(`Image file name : ${imageFileName}`);
 
-      const fileContent = await (await client.files.getContent(imageFile).asNodeStream()).body;
+      const fileContent = await (await client.files.getContent(imageFileId).asNodeStream()).body;
       if (fileContent) {
         const chunks = [];
         for await (const chunk of fileContent) {
@@ -133,10 +159,12 @@ async function main() {
   console.log(`Message Details:`);
   messagesArray.forEach((m) => {
     console.log(`File Paths:`);
-    console.log(`Type: ${m.content[0].type}`);
-    if (isOutputOfType(m.content[0], "text")) {
+    console.log(`Type: ${m.content[0].type}`);    if (isOutputOfType(m.content[0], "text")) {
       const textContent = m.content[0];
-      console.log(`Text: ${textContent?.text?.value}`);
+      // Use type guard to safely access text property
+      if ('text' in textContent && textContent.text && typeof textContent.text === 'object' && 'value' in textContent.text) {
+        console.log(`Text: ${textContent.text.value}`);
+      }
     }
     console.log(`File ID: ${m.id}`);
     // firstId and lastId are properties of the paginator, not the messages array
