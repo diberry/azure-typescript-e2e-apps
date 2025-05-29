@@ -10,9 +10,9 @@ import {
   isOutputOfType,
   ToolUtility,
   Agent,
-  AgentThread,
-  FileInfo,
-  ThreadMessage
+  Thread,
+  File,
+  Message,
 } from "@azure/ai-agents";
 import { DefaultAzureCredential } from "@azure/identity";
 
@@ -24,17 +24,13 @@ import "dotenv/config";
 const projectEndpoint = process.env["PROJECT_ENDPOINT"]!;
 const modelDeploymentName = process.env["MODEL_DEPLOYMENT_NAME"]! || "gpt-4o";
 
-if (!process.env["PROJECT_ENDPOINT"]) {
-  throw new Error("PROJECT_ENDPOINT environment variable is required");
-}
-
 /**
  * Initialize the client, upload files, and create agent and thread
  */
 async function setupAgentAndResources(client: AgentsClient): Promise<{
   agent: Agent;
-  thread: AgentThread;
-  localFile: FileInfo;
+  thread: Thread;
+  localFile: File;
 }> {
   console.log("Setting up agent and resources...");
   
@@ -70,10 +66,10 @@ async function setupAgentAndResources(client: AgentsClient): Promise<{
  */
 async function executeAgentTask(
   client: AgentsClient,
-  thread: AgentThread,
+  thread: Thread,
   agent: Agent,
   userPrompt: string
-): Promise<ThreadMessage> {
+): Promise<Message> {
   console.log("Executing agent task...");
   
   // Create a message
@@ -142,12 +138,12 @@ async function executeAgentTask(
 /**
  * Retrieve and process the results from the agent
  */
-async function processResults(client: AgentsClient, threadId: string): Promise<ThreadMessage[]> {
+async function processResults(client: AgentsClient, threadId: string): Promise<any[]> {
   console.log("Processing results...");
   
   // Print the messages from the agent
   const messagesIterator = client.messages.list(threadId);
-  const messagesArray: ThreadMessage[] = [];
+  const messagesArray = [];
   
   for await (const m of messagesIterator) {
     messagesArray.push(m);
@@ -180,7 +176,7 @@ async function processResults(client: AgentsClient, threadId: string): Promise<T
  */
 async function downloadGeneratedFiles(
   client: AgentsClient, 
-  messages: ThreadMessage[]
+  messages: any[]
 ): Promise<string | undefined> {
   console.log("Checking for and downloading generated files...");
   
@@ -191,7 +187,7 @@ async function downloadGeneratedFiles(
     return;
   }
   
-  const textContent = assistantMessage.content.find((content: any) => isOutputOfType(content, "text"));
+  const textContent = assistantMessage.content.find((content) => isOutputOfType(content, "text"));
   if (!textContent) {
     console.log("No text content found in assistant message");
     return;
@@ -237,14 +233,7 @@ async function downloadGeneratedFiles(
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
   }
   const buffer = Buffer.concat(chunks);
-
-  try {
-    fs.writeFileSync(imageFileName, buffer);
-    console.log(`File saved to ${imageFileName}`);
-  } catch (error) {
-    console.error(`Error saving file to ${imageFileName}:`, error);
-  }
-
+  fs.writeFileSync(imageFileName, buffer);
   console.log(`File saved to ${imageFileName}`);
   
   return imageFileName;

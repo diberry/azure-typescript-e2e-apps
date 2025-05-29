@@ -1,6 +1,0 @@
-{
-  "error": {
-    "code": "notFound",
-    "message": "The specified entity cannot be found."
-  }
-}

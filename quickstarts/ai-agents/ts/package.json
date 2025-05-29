@@ -2,10 +2,10 @@
   "name": "azureaiagents",
   "version": "1.0.0",
   "main": "index.js",
-  "type": "module",
   "scripts": {
     "build": "tsc",
     "start": "tsc && node -r dotenv/config dist/index.js",
+    "start:js": "node -r dotenv/config src/original.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
