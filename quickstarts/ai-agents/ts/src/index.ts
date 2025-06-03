@@ -20,6 +20,14 @@ import * as fs from "fs";
 import * as path from "node:path";
 import "dotenv/config";
 
+// Handle unhandled promise rejections and uncaught exceptions
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+});
+
 // Configuration
 const projectEndpoint = process.env["PROJECT_ENDPOINT"]!;
 const modelDeploymentName = process.env["MODEL_DEPLOYMENT_NAME"]! || "gpt-4o";
@@ -39,7 +47,7 @@ async function setupAgentAndResources(client: AgentsClient): Promise<{
   console.log("Setting up agent and resources...");
   
   // Upload file and wait for it to be processed
-  const filePath = "./data/nifty500QuarterlyResults.csv";
+  const filePath = "./data/niftyList.csv";
   const localFileStream = fs.createReadStream(filePath);
   const localFile = await client.files.upload(localFileStream, "assistants", {
     fileName: "myLocalFile",
@@ -222,14 +230,6 @@ async function downloadGeneratedFiles(
   }
   
   const imageFileName = path.resolve(
-    "./data/" + (await client.files.get(imageFileId)).filename + "ImageFile.png",
-  );
-  console.log(`Image file name : ${imageFileName}`);
-
-  const fileContent = await (await client.files.getContent(imageFileId).asNodeStream()).body;
-  if (!fileContent) {
-    console.log("No file content available");
-    return;
   }
   
   const chunks = [];

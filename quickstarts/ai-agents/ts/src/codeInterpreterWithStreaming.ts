@@ -6,8 +6,15 @@
  *
  * @summary demonstrates how to use agent operations with code interpreter.
  */
-
-const {
+// @ts-nocheck
+import type {
+  MessageDeltaChunk,
+  MessageDeltaTextContent,
+  MessageImageFileContent,
+  MessageTextContent,
+  ThreadRun,
+} from "@azure/ai-agents";
+import {
   RunStreamEvent,
   MessageStreamEvent,
   DoneEvent,
@@ -15,22 +22,22 @@ const {
   AgentsClient,
   isOutputOfType,
   ToolUtility,
-} = require("@azure/ai-agents");
-const { DefaultAzureCredential } = require("@azure/identity");
+} from "@azure/ai-agents";
+import { DefaultAzureCredential } from "@azure/identity";
 
-const fs = require("fs");
-const path = require("node:path");
-require("dotenv/config");
+import * as fs from "fs";
+import path from "node:path";
+import "dotenv/config";
 
 const projectEndpoint = process.env["PROJECT_ENDPOINT"] || "<project endpoint>";
 const modelDeploymentName = process.env["MODEL_DEPLOYMENT_NAME"] || "gpt-4o";
 
-async function main() {
+export async function main(): Promise<void> {
   // Create an Azure AI Client
   const client = new AgentsClient(projectEndpoint, new DefaultAzureCredential());
 
   // Upload file and wait for it to be processed
-  const filePath = "./data/nifty500QuarterlyResults.csv";
+  const filePath = "./data/niftyList.csv";
   const localFileStream = fs.createReadStream(filePath);
   const localFile = await client.files.upload(localFileStream, "assistants", {
     fileName: "myLocalFile",
@@ -58,7 +65,7 @@ async function main() {
   const message = await client.messages.create(
     thread.id,
     "user",
-    "Could you please create a bar chart in the TRANSPORTATION sector for the operating profit from the uploaded CSV file and provide the file to me?",
+    "Could you please create a bar chart in the USA transportation industry for the operating profit from the uploaded CSV file and provide the file to me? If you can't create an image file, please provide the data in a text format and say what is wrong with the data to stop you from generating the image.",
   );
 
   console.log(`Created message, message ID: ${message.id}`);
@@ -69,14 +76,14 @@ async function main() {
   for await (const eventMessage of streamEventMessages) {
     switch (eventMessage.event) {
       case RunStreamEvent.ThreadRunCreated:
-        console.log(`ThreadRun status: ${eventMessage.data.status}`);
+        console.log(`ThreadRun status: ${(eventMessage.data as ThreadRun).status}`);
         break;
       case MessageStreamEvent.ThreadMessageDelta:
         {
-          const messageDelta = eventMessage.data;
+          const messageDelta = eventMessage.data as MessageDeltaChunk;
           messageDelta.delta.content.forEach((contentPart) => {
             if (contentPart.type === "text") {
-              const textContent = contentPart;
+              const textContent = contentPart as MessageDeltaTextContent;
               const textValue = textContent.text?.value || "No text";
               console.log(`Text delta received:: ${textValue}`);
             }
@@ -93,6 +100,9 @@ async function main() {
       case DoneEvent.Done:
         console.log("Stream completed.");
         break;
+      default:
+        console.log(`Unknown event type: ${eventMessage.event}`);
+        break;
     }
   }
 
@@ -108,7 +118,7 @@ async function main() {
   }
   console.log("Messages:", messagesArray);
 
-// Get most recent message from the assistant
+  // Get most recent message from the assistant
   const assistantMessage = messagesArray.find((msg) => msg.role === "assistant");
   if (assistantMessage) {
     // Look for an image file in the assistant's message
@@ -152,8 +162,8 @@ async function main() {
   messagesArray.forEach((m) => {
     console.log(`File Paths:`);
     console.log(`Type: ${m.content[0].type}`);
-    if (isOutputOfType(m.content[0], "text")) {
-      const textContent = m.content[0];
+    if (isOutputOfType<MessageTextContent>(m.content[0], "text")) {
+      const textContent = m.content[0] as MessageTextContent;
       console.log(`Text: ${textContent.text.value}`);
     }
     console.log(`File ID: ${m.id}`);
@@ -169,5 +179,3 @@ async function main() {
 main().catch((err) => {
   console.error("The sample encountered an error:", err);
 });
-
-module.exports = { main };

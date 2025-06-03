@@ -1,7 +1,8 @@
+
 # Define variables
-subscription="YOUR_SUBSCRIPTION_ID"  # Replace with your actual subscription ID
-resource_group="YOUR_RESOURCE_GROUP"  # Replace with your actual resource group name
-project_name="YOUR_PROJECT_NAME"  # Replace with your actual project name
+subscription="1bd6f57f-967b-4aed-a90f-d13ad8d84ffe"  # Replace with your actual subscription ID
+resource_group="dib-sweden"  # Replace with your actual resource group name
+project_name="basicaccountozwc"  # Replace with your actual project name
 
 # Get the current logged in user and their object ID
 echo "Getting details of the currently logged in user..."
