@@ -34,10 +34,16 @@ const modelDeploymentName = process.env["MODEL_DEPLOYMENT_NAME"] || "gpt-4o";
 
 export async function main(): Promise<void> {
   // Create an Azure AI Client
-  const client = new AgentsClient(projectEndpoint, new DefaultAzureCredential());
+  const client = new AgentsClient(projectEndpoint, new DefaultAzureCredential(), {
+    retryOptions: {
+      maxRetries: 3,
+      retryDelayInMs: 2000
+    }
+  });
 
   // Upload file and wait for it to be processed
   const filePath = "./data/niftyList.csv";
+  console.log(`Uploading file from path: ${filePath}`);
   const localFileStream = fs.createReadStream(filePath);
   const localFile = await client.files.upload(localFileStream, "assistants", {
     fileName: "myLocalFile",
@@ -65,7 +71,7 @@ export async function main(): Promise<void> {
   const message = await client.messages.create(
     thread.id,
     "user",
-    "Could you please create a bar chart in the USA transportation industry for the operating profit from the uploaded CSV file and provide the file to me? If you can't create an image file, please provide the data in a text format and say what is wrong with the data to stop you from generating the image.",
+    "Could you please create a bar chart to explain the operating profit for companies related to the transportation area from the uploaded CSV file and provide the file to me?",
   );
 
   console.log(`Created message, message ID: ${message.id}`);
@@ -101,7 +107,34 @@ export async function main(): Promise<void> {
         console.log("Stream completed.");
         break;
       default:
-        console.log(`Unknown event type: ${eventMessage.event}`);
+
+        console.log(`Unhandled event type: ${JSON.stringify(eventMessage)}`);
+
+        let waitSeconds = 1000;
+
+        if (eventMessage.event.includes("thread.message")) {
+          const messageType = eventMessage.event;
+          const message = eventMessage?.data?.content?.forEach((contentPart) => {
+            if (contentPart.type === "text") {
+
+              const message: string = contentPart.text?.value || "No text";
+
+              if( message.includes("Rate limit is exceeded. Try again in ")) {
+                const regex = /Rate limit is exceeded. Try again in (\d+) seconds/;
+                const match = message.match(regex);
+                if (match && match[1]) {
+                  waitSeconds = parseInt(match[1], 10) * 1000; // Convert seconds to milliseconds
+                  console.log(`Rate limit exceeded, waiting for ${waitSeconds} milliseconds`);
+                  return new Promise((resolve) => setTimeout(resolve, waitSeconds));
+                }
+              } else {
+
+              return contentPart?.text?.value + ", " || "no text, ";
+              }
+            }
+          });
+          console.log(`${messageType} received:: ${eventMessage?.event}`);
+        }
         break;
     }
   }
@@ -122,9 +155,9 @@ export async function main(): Promise<void> {
   const assistantMessage = messagesArray.find((msg) => msg.role === "assistant");
   if (assistantMessage) {
     // Look for an image file in the assistant's message
-    const imageFileOutput = assistantMessage.content.find(content => 
+    const imageFileOutput = assistantMessage.content.find(content =>
       content.type === "image_file" && content.imageFile?.fileId);
-    
+
     if (imageFileOutput) {
       try {
         // Save the newly created file

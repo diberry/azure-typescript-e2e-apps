@@ -230,6 +230,14 @@ async function downloadGeneratedFiles(
   }
   
   const imageFileName = path.resolve(
+    "./data/" + (await client.files.get(imageFileId)).filename + "ImageFile.png",
+  );
+  console.log(`Image file name : ${imageFileName}`);
+
+  const fileContent = await (await client.files.getContent(imageFileId).asNodeStream()).body;
+  if (!fileContent) {
+    console.log("No file content available");
+    return;
   }
   
   const chunks = [];
@@ -275,7 +283,12 @@ async function cleanupResources(
 async function main() {
   try {
     // Create an Azure AI Client
-    const client = new AgentsClient(projectEndpoint, new DefaultAzureCredential());
+    const client = new AgentsClient(projectEndpoint, new DefaultAzureCredential(), {
+      retryOptions: {
+        maxRetries: 3,            // number of retry attempts
+        retryDelayInMs: 2000      // delay between retries in milliseconds
+      }
+    });
     
     // Step 1: Setup agent and resources
     const { agent, thread, localFile } = await setupAgentAndResources(client);
